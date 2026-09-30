@@ -1,0 +1,120 @@
+name: Generate and Obfuscate Worker Script
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - '**'
+    paths:
+      - '明文源吗'
+
+jobs:
+  build-and-obfuscate:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install Wrangler
+        run: npm install -g wrangler
+
+      - name: Install Obfuscator
+        run: npm install javascript-obfuscator
+
+      - name: Obfuscate from local source file
+        run: |
+          cat > obfuscate.js << 'EOFJS'
+          const JavaScriptObfuscator = require('javascript-obfuscator');
+          const fs = require('fs');
+          const path = require('path');
+
+          const sourceFileName = '明文源吗';
+          const outputFileName = 'edgetunnel经典轻量版';
+          const sourceFilePath = path.join(process.cwd(), sourceFileName);
+
+          if (!fs.existsSync(sourceFilePath)) {
+            console.error('错误：未找到源文件 "明文源吗"。');
+            process.exit(1);
+          }
+
+          const originalCode = fs.readFileSync(sourceFilePath, 'utf8');
+
+          if (!originalCode || originalCode.trim().length === 0) {
+            console.error('错误：源文件为空。');
+            process.exit(1);
+          }
+
+          const obfuscationOptions = {
+              compact: true,
+              controlFlowFlattening: false,
+              controlFlowFlatteningThreshold: 0,
+              deadCodeInjection: false,
+              stringArray: true,
+              stringArrayEncoding: ['base64'],
+              stringArrayThreshold: 1.0,
+              stringArrayRotate: true,
+              stringArrayShuffle: true,
+              stringArrayWrappersCount: 2,
+              stringArrayWrappersChainedCalls: false,
+              stringArrayWrappersParametersMaxCount: 3,
+              renameGlobals: true,
+              identifierNamesGenerator: 'mangled-shuffled',
+              identifierNamesCache: null,
+              identifiersPrefix: '',
+              renameProperties: false,
+              renamePropertiesMode: 'safe',
+              ignoreImports: false,
+              target: 'browser',
+              numbersToExpressions: false,
+              simplify: false,
+              splitStrings: true,
+              splitStringsChunkLength: 1,
+              transformObjectKeys: false,
+              unicodeEscapeSequence: true,
+              selfDefending: false,
+              debugProtection: false,
+              debugProtectionInterval: 0,
+              disableConsoleOutput: false,
+              domainLock: []
+          };
+
+          const obfuscatedCode = JavaScriptObfuscator.obfuscate(originalCode, obfuscationOptions).getObfuscatedCode();
+          fs.writeFileSync(path.join(process.cwd(), outputFileName), obfuscatedCode, 'utf8');
+          console.log('成功混淆并保存至 "edgetunnel经典轻量版"。');
+          EOFJS
+          node obfuscate.js
+
+      - name: Update UUID in Obfuscated Script
+        run: |
+          node update_uuid.js
+        env:
+          CFNEW_UUID: ${{ vars.CFNEW_UUID }}
+
+      - name: Create wrangler.toml
+        run: node create_wrangler_toml.js
+        env:
+          CF_ACCOUNT: ${{ secrets.CF_ACCOUNT_ID }}
+
+      - name: Deploy to Cloudflare Workers
+        run: wrangler deploy --env production
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+
+      - name: Commit and push the obfuscated file
+        run: |
+          git config --global user.name 'GitHub Actions Bot'
+          git config --global user.email 'github-actions[bot]@users.noreply.github.com'
+          git add 'edgetunnel经典轻量版'
+          git add obfuscate.js update_uuid.js create_wrangler_toml.js wrangler.toml 2>/dev/null || true
+          if git diff --staged --quiet; then
+            echo "No changes to commit."
+          else
+            git commit -m "build: obfuscate + deploy cfnew worker"
+            git push
+          fi
