@@ -5,4 +5,4 @@ let c = fs.readFileSync(mjs, 'utf8');
 const uuid = process.env.CFNEW_UUID || 'fca1522b-fd22-490c-b4fe-b1722a33b0f7';
 c = c.replace(/let 认证令牌 = '[^']+'/, `let 认证令牌 = '${uuid}'`);
 fs.writeFileSync(mjs, c, 'utf8');
-console.log('UUID updated in ' + mjs + ' -> ' + uuid);
+console.log('Updated ' + mjs + ' UUID -> ' + uuid);
