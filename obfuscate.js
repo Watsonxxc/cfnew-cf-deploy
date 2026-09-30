@@ -1,15 +1,15 @@
 const JavaScriptObfuscator = require('javascript-obfuscator');
-const fs2 = require('fs');
+const fs = require('fs');
 const path = require('path');
 
 const src = '明文源吗';
-const out = 'edgetunnel经典轻量版';
+const out = 'edgetunnel.mjs';
 const srcPath = path.join(process.cwd(), src);
 
-if (!fs2.existsSync(srcPath)) {
-  console.log('No 明文源吗 found, using existing script');
+if (!fs.existsSync(srcPath)) {
+  console.log('No 明文源吗 found, checking existing worker file...');
 } else {
-  const code = fs2.readFileSync(srcPath, 'utf8');
+  const code = fs.readFileSync(srcPath, 'utf8');
   const obfuscated = JavaScriptObfuscator.obfuscate(code, {
     compact: true,
     controlFlowFlattening: false,
@@ -32,6 +32,6 @@ if (!fs2.existsSync(srcPath)) {
     disableConsoleOutput: false,
     domainLock: []
   }).getObfuscatedCode();
-  fs2.writeFileSync(path.join(process.cwd(), out), obfuscated, 'utf8');
+  fs.writeFileSync(path.join(process.cwd(), out), obfuscated, 'utf8');
   console.log('Obfuscated successfully -> ' + out);
 }
